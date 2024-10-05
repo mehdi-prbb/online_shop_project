@@ -1,0 +1,26 @@
+name: online_shop_project
+
+services:
+  web:
+    image: online-shop-img
+    container_name: online-shop-docker-container
+    build: .
+    command: python /code/manage.py runserver 0.0.0.0:8000
+    ports:
+      - 8000:8000
+    volumes:
+      - .:/code
+    environment:
+      - "SECRET_KEY=${DJANGO_SECRET_KEY}"
+
+  db:
+    image: postgres
+    container_name: postgres-container
+    environment:
+      - "POSTGRES_HOST_AUTH_METHOD=trust"
+      - "DB_NAME=${DB_NAME}"
+      - "DB_USER=${DB_USER}"
+      - "DB_PASSWORD=${DB_PASSWORD}"
+      - "DB_HOST=${DB_HOST}"
+      - "DB_PORT=${DB_PORT}"
+
