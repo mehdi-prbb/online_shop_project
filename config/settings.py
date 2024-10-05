@@ -19,8 +19,7 @@ from environ import Env
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 env = Env()
-env.read_env()
-# Env.read_env(os.path.join(BASE_DIR, '.env'))
+Env.read_env(os.path.join(BASE_DIR, '.env'))
 ENVIRONMENT = env('ENVIRONMENT', default='production')
 
 
@@ -48,6 +47,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    # My Apps
+    'accounts.apps.AccountsConfig',
 ]
 
 MIDDLEWARE = [
@@ -141,3 +143,6 @@ MEDIA_ROOT = str(BASE_DIR.joinpath('media'))
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Authentication settings
+AUTH_USER_MODEL = 'accounts.CustomUser'
