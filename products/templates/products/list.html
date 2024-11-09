@@ -1,45 +1,8 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Product List</title>
-</head>
-<body>
-    <h1>Product List</h1>
-    
-    <ul>
-        {% for product in products %}
-            <li>
-                <h2>{{ product.name }}</h2>
-                {% comment %} <img src="{{ product.cover_image.url }}" alt="{{ product.name }} cover image"> {% endcomment %}
-                <p>{{ product.description }}</p>
-                
-                <h3>Variants</h3>
-                <ul>
-                    {% for variant in product.variants.all %}
-                        <li>
-                            {% comment %} <img src="{{ variant.image.url }}" alt="{{ variant.color.name }}"> {% endcomment %}
-                            <p>Color: {{ variant.color.name }}</p>
-                            <p>Price: ${{ variant.price }}</p>
-                            <p>Stock: {{ variant.stock }}</p>
-                        </li>
-                    {% empty %}
-                        <li>No variants available.</li>
-                    {% endfor %}
-                </ul>
-                
-                <h3>Attributes</h3>
-                <ul>
-                    {% for attribute_value in product.attribute_values.all %}
-                        <li>{{ attribute_value.attribute.name }}: {{ attribute_value.value }}</li>
-                    {% empty %}
-                        <li>No attributes available.</li>
-                    {% endfor %}
-                </ul>
-            </li>
-        {% empty %}
-            <li>No products available.</li>
-        {% endfor %}
-    </ul>
-</body>
-</html>
+{% extends '_base.html' %}
+
+{% block page_title %}
+Home Page
+{% endblock %}
+
+{% block content %}
+{% endblock %}
