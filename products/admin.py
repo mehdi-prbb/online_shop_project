@@ -1,8 +1,11 @@
+from django.db import connection
 from django import forms
 from django.contrib import admin
+from django.db.models import Prefetch
 from django.db.models import Sum
-
-from unfold.admin import ModelAdmin, TabularInline
+from treebeard.admin import TreeAdmin
+from treebeard.forms import movenodeform_factory
+from django.contrib.admin import ModelAdmin, TabularInline
 
 from . models import (
                     Category, Color,
@@ -19,11 +22,18 @@ class CategoryAdmin(ModelAdmin):
     Configures which fields are displayed in the list view, enables search, 
     prepopulates the slug field based on the title, and filters by title.
     """
-    list_display = ['id', 'title', 'parent', 'is_active']
+    list_display = ['id', 'title', 'parent', 'is_active',]
     list_display_links = ['id', 'title']
+    readonly_fields = ['slug']
     search_fields = ['title']
-    prepopulated_fields = {'slug': ('title',)}
     list_filter = ['title']
+    autocomplete_fields = ['parent']
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related(
+            Prefetch('parent', queryset=Category.objects.all())
+        )
+
 
 
 class VariantInline(TabularInline):
@@ -88,12 +98,12 @@ class ProductAdmin(ModelAdmin):
     filters, inlines for related models, and custom queryset behavior 
     for optimizing performance.
     """
-    list_display = ['id', 'name', 'category',
+    list_display = ['id', 'name', 'product_category',
                     'total_stock', 'created_at',
                     'updated_at','is_active']
     list_display_links = ['id', 'name']
-    search_fields = ['name', 'category', 'description']
-    list_filter = ['name', 'category', 'updated_at']
+    search_fields = ['name', 'description', 'category__slug']
+    list_filter = ['name', 'updated_at']
     autocomplete_fields = ['category']
     inlines = [ProductAttributeValueInline, VariantInline]
 
@@ -105,8 +115,7 @@ class ProductAdmin(ModelAdmin):
         the total stock of all variants for each product.
         """
         qs = super().get_queryset(request)
-        return qs.select_related('category__parent').\
-            annotate(total_stock=Sum('variants__stock'))
+        return qs.annotate(total_stock=Sum('variants__stock')).select_related('category')
 
     @admin.display(description='Total Stock', ordering='total_stock')
     def total_stock(self, obj):
@@ -116,8 +125,12 @@ class ProductAdmin(ModelAdmin):
         This value is displayed in the admin list view as 'Total Stock'.
         """
         return obj.total_stock
-    
 
+    @admin.display(description='category', ordering='category')
+    def product_category(self, obj):
+        return obj.category.slug
+    
+    
 @admin.register(Attribute)
 class AttributeAdmin(ModelAdmin):
     """

@@ -1,4 +1,8 @@
+from django.utils.functional import cached_property
 from django.db import models
+from django.db.models import Prefetch
+from django.utils.text import slugify
+from django.core.exceptions import ValidationError
 
 from colorfield.fields import ColorField
 
@@ -8,20 +12,40 @@ class Category(models.Model):
     Model representing a product category.
     """
     title = models.CharField(max_length=250)
-    slug = models.SlugField(unique=True)
+    slug = models.SlugField(unique=True, blank=True)
     parent = models.ForeignKey(
                                 "self", on_delete=models.CASCADE,
-                                null=True, blank=True,
-                                related_name='subcategories'
+                                related_name='sub_cats',
+                                null=True,
+                                blank=True
                                 )
-    
     is_active = models.BooleanField(default=True)
-    
+
     class Meta:
         verbose_name_plural = 'categories'
 
+    def clean(self):
+        super().clean()
+        full_path = self.categoty_path()
+        self.slug = slugify(full_path[::-1])
+        if Category.objects.filter(slug=self.slug).exists():
+            raise ValidationError(f"This category with '{self.slug}' slug already exists.")
+
+    def categoty_path(self):
+        path = [self.title]
+        parent_name = self.parent
+        while parent_name is not None:
+            path.append(parent_name.title)
+            parent_name = parent_name.parent
+        return path
+        
+
     def __str__(self):
-        return self.title
+        """
+        Return full path category.
+        """
+        full_path = self.categoty_path()
+        return ' => '.join(full_path[::-1])
     
 
 class Product(models.Model):
