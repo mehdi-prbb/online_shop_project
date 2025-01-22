@@ -1,11 +1,14 @@
-from django.db import connection
 from django import forms
 from django.contrib import admin
 from django.db.models import Prefetch
 from django.db.models import Sum
-from treebeard.admin import TreeAdmin
-from treebeard.forms import movenodeform_factory
 from django.contrib.admin import ModelAdmin, TabularInline
+from django.utils.html import format_html
+from django.core.exceptions import ValidationError
+
+from mptt.admin import DraggableMPTTAdmin
+from mptt.admin import TreeRelatedFieldListFilter
+from mptt.admin import MPTTModelAdmin
 
 from . models import (
                     Category, Color,
@@ -15,26 +18,32 @@ from . models import (
 
 
 @admin.register(Category)
-class CategoryAdmin(ModelAdmin):
+class CategoryAdmin(DraggableMPTTAdmin):
     """
     Customizes the admin interface for the Category model.
 
     Configures which fields are displayed in the list view, enables search, 
     prepopulates the slug field based on the title, and filters by title.
     """
-    list_display = ['id', 'title', 'parent', 'is_active',]
-    list_display_links = ['id', 'title']
-    readonly_fields = ['slug']
+    list_display = ['id', 'tree_actions', 'category_title', 'slug', 'is_active', ]
+    list_display_links = ['id', 'category_title']
     search_fields = ['title']
-    list_filter = ['title']
     autocomplete_fields = ['parent']
+    readonly_fields = ['slug']
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def category_title(self, instance):
+        return format_html(
+            '<div style="text-indent:{}px">{}</div>',
+            instance._mpttfield('level') * self.mptt_level_indent,
+            instance.title,  # Or whatever you want to put here
+        )
+    category_title.short_description = ('title')
 
     def get_queryset(self, request):
-        return super().get_queryset(request).prefetch_related(
-            Prefetch('parent', queryset=Category.objects.all())
-        )
-
-
+        return super().get_queryset(request).select_related('parent')
 
 class VariantInline(TabularInline):
     """

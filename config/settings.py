@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'colorfield',
     'debug_toolbar',
     # 'treebeard',
+    'mptt',
 
     # My Apps
     'accounts.apps.AccountsConfig',

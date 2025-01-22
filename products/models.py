@@ -1,51 +1,40 @@
-from django.utils.functional import cached_property
 from django.db import models
-from django.db.models import Prefetch
 from django.utils.text import slugify
 from django.core.exceptions import ValidationError
 
 from colorfield.fields import ColorField
+from mptt.models import MPTTModel, TreeForeignKey
 
 
-class Category(models.Model):
+class Category(MPTTModel):
     """
     Model representing a product category.
     """
     title = models.CharField(max_length=250)
-    slug = models.SlugField(unique=True, blank=True)
-    parent = models.ForeignKey(
-                                "self", on_delete=models.CASCADE,
-                                related_name='sub_cats',
-                                null=True,
-                                blank=True
-                                )
+    slug = models.SlugField(blank=True)
+    parent = TreeForeignKey('self', null=True, blank=True, related_name='sub_cats', on_delete=models.CASCADE)
     is_active = models.BooleanField(default=True)
 
     class Meta:
-        verbose_name_plural = 'categories'
+        verbose_name_plural = "categories"
 
     def clean(self):
-        super().clean()
-        full_path = self.categoty_path()
-        self.slug = slugify(full_path[::-1])
+
+        if self.parent:
+            self.slug = slugify(f"{self.parent} {self.title}")
+        else:
+            self.slug = slugify(self.title)
+
         if Category.objects.filter(slug=self.slug).exists():
-            raise ValidationError(f"This category with '{self.slug}' slug already exists.")
+            raise ValidationError(f'A category with slug "{self.slug}" is already exists.')
 
-    def categoty_path(self):
-        path = [self.title]
-        parent_name = self.parent
-        while parent_name is not None:
-            path.append(parent_name.title)
-            parent_name = parent_name.parent
-        return path
+        return super().clean()
         
-
+    
     def __str__(self):
-        """
-        Return full path category.
-        """
-        full_path = self.categoty_path()
-        return ' => '.join(full_path[::-1])
+        if self.parent:
+            return f"{self.parent} > {self.title}"
+        return self.title
     
 
 class Product(models.Model):
