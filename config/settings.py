@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'debug_toolbar',
     # 'treebeard',
     'mptt',
+    'taggit',
 
     # My Apps
     'accounts.apps.AccountsConfig',

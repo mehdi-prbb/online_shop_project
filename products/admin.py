@@ -1,14 +1,7 @@
 from django import forms
 from django.contrib import admin
-from django.db.models import Prefetch
 from django.db.models import Sum
 from django.contrib.admin import ModelAdmin, TabularInline
-from django.utils.html import format_html
-from django.core.exceptions import ValidationError
-
-from mptt.admin import DraggableMPTTAdmin
-from mptt.admin import TreeRelatedFieldListFilter
-from mptt.admin import MPTTModelAdmin
 
 from . models import (
                     Category, Color,
@@ -18,32 +11,25 @@ from . models import (
 
 
 @admin.register(Category)
-class CategoryAdmin(DraggableMPTTAdmin):
+class CategoryAdmin(ModelAdmin):
     """
     Customizes the admin interface for the Category model.
 
     Configures which fields are displayed in the list view, enables search, 
     prepopulates the slug field based on the title, and filters by title.
     """
-    list_display = ['id', 'tree_actions', 'category_title', 'slug', 'is_active', ]
-    list_display_links = ['id', 'category_title']
+    list_display = ['id', 'title', 'parent', 'is_active', ]
+    list_display_links = ['id', 'title']
     search_fields = ['title']
     autocomplete_fields = ['parent']
     readonly_fields = ['slug']
-
-    def has_change_permission(self, request, obj=None):
-        return False
-
-    def category_title(self, instance):
-        return format_html(
-            '<div style="text-indent:{}px">{}</div>',
-            instance._mpttfield('level') * self.mptt_level_indent,
-            instance.title,  # Or whatever you want to put here
-        )
-    category_title.short_description = ('title')
+    
+    @admin.display(description='parent', ordering='category')
+    def parent(self, obj):
+        return obj.parent
 
     def get_queryset(self, request):
-        return super().get_queryset(request).select_related('parent')
+        return super().get_queryset(request).select_related('parent__parent__parent')
 
 class VariantInline(TabularInline):
     """
@@ -59,30 +45,6 @@ class VariantInline(TabularInline):
     autocomplete_fields = ['color']
 
 
-class ProductAttributeValueForm(forms.ModelForm):
-    """
-    A form for creating and updating ProductAttributeValue instances.
-    
-    This form automatically populates the attribute field's queryset 
-    with all available attributes, optimizing the query to include 
-    their related category.
-    """
-    class Meta:
-        model = ProductAttributeValue
-        fields = '__all__'
-
-    def __init__(self, *args, **kwargs):
-        """
-        Initializes the form and modifies the queryset for the attribute field.
-        
-        This ensures that only attributes associated with categories 
-        are available for selection, improving usability.
-        """
-        super().__init__(*args, **kwargs)
-        # Set the queryset for the attribute field to include related categories
-        self.fields['attribute'].queryset =\
-        Attribute.objects.all().select_related('category')
-
 class ProductAttributeValueInline(TabularInline):
     """
     Inline admin interface for managing ProductAttributeValue instances 
@@ -92,11 +54,10 @@ class ProductAttributeValueInline(TabularInline):
     directly within the parent model's admin form.
     """
     model = ProductAttributeValue
-    form = ProductAttributeValueForm
     extra = 1
     fields = ['attribute', 'value']
     autocomplete_fields = ['attribute']
-    
+
 
 @admin.register(Product)
 class ProductAdmin(ModelAdmin):
@@ -108,11 +69,13 @@ class ProductAdmin(ModelAdmin):
     for optimizing performance.
     """
     list_display = ['id', 'name', 'product_category',
-                    'total_stock', 'created_at',
+                    'total_stock', 'tag_list', 'created_at',
                     'updated_at','is_active']
     list_display_links = ['id', 'name']
     search_fields = ['name', 'description', 'category__slug']
     list_filter = ['name', 'updated_at']
+    prepopulated_fields = {'slug': ('name',)}
+    filter_horizontal = ('category',)
     autocomplete_fields = ['category']
     inlines = [ProductAttributeValueInline, VariantInline]
 
@@ -124,8 +87,8 @@ class ProductAdmin(ModelAdmin):
         the total stock of all variants for each product.
         """
         qs = super().get_queryset(request)
-        return qs.annotate(total_stock=Sum('variants__stock')).select_related('category')
-
+        return qs.annotate(total_stock=Sum('variants__stock')).prefetch_related('category', 'tags')
+    
     @admin.display(description='Total Stock', ordering='total_stock')
     def total_stock(self, obj):
         """
@@ -135,9 +98,12 @@ class ProductAdmin(ModelAdmin):
         """
         return obj.total_stock
 
-    @admin.display(description='category', ordering='category')
+    @admin.display(description='Categories', ordering='category')
     def product_category(self, obj):
-        return obj.category.slug
+        return " | ".join([cat.slug for cat in obj.category.all()])
+    
+    def tag_list(self, obj):
+        return u", ".join(o.name for o in obj.tags.all())
     
     
 @admin.register(Attribute)
@@ -148,33 +114,8 @@ class AttributeAdmin(ModelAdmin):
     Configures the display of Attribute instances, search capabilities, 
     filters by category, and optimizes the queryset for performance.
     """
-    list_display = ['name', 'category']
+    list_display = ['name',]
     search_fields = ['name']
-    list_filter = ['category']
-
-    def get_queryset(self, request):
-        """
-        Customizes the queryset for the admin list view to optimize performance.
-        
-        Uses select_related to reduce the number of queries made when 
-        accessing related category data.
-        """
-        return super().get_queryset(request).select_related('category')
-
-
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        """
-        Customizes the queryset for the foreign key field in the admin form.
-        
-        Filters the category field to show only active parent categories.
-        This improves usability by preventing selection of inactive or 
-        non-parent categories.
-        """
-        if db_field.name == "category":
-            kwargs["queryset"] = Category.objects.\
-                filter(parent__isnull=True, is_active=True)
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
-
 
 @admin.register(Color)
 class ColorAdmin(ModelAdmin):

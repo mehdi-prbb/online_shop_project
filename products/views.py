@@ -1,5 +1,6 @@
 from django.views.generic import ListView
 from django.db.models import Prefetch
+from django.shortcuts import get_object_or_404
 
 from .models import Product, Category
 
@@ -11,13 +12,13 @@ class ProductListView(ListView):
     context_object_name = 'products'
 
     def get_queryset(self):
-        # Fetch the category by slug (or any other identifier)
-        category_slug = self.kwargs.get('slug')  
+        category_slug = self.kwargs.get('slug')
 
-        category = Category.objects.get(slug=category_slug)
+        category = get_object_or_404(Category, slug=category_slug, is_active=True)
 
-        print(category.get_descendants())
+        queryset = Product.objects.filter(category=category)
 
-        queryset = Product.objects.filter(category__slug__in=[category])
         return queryset
     
+
+

@@ -3,49 +3,65 @@ from django.utils.text import slugify
 from django.core.exceptions import ValidationError
 
 from colorfield.fields import ColorField
-from mptt.models import MPTTModel, TreeForeignKey
+from taggit.managers import TaggableManager
 
 
-class Category(MPTTModel):
+class Category(models.Model):
     """
     Model representing a product category.
     """
     title = models.CharField(max_length=250)
-    slug = models.SlugField(blank=True)
-    parent = TreeForeignKey('self', null=True, blank=True, related_name='sub_cats', on_delete=models.CASCADE)
+    slug = models.SlugField(unique=True, blank=True)
+    parent = models.ForeignKey(
+                                'self', null=True, blank=True,
+                                related_name='sub_cats',
+                                on_delete=models.CASCADE
+                                )
     is_active = models.BooleanField(default=True)
 
     class Meta:
         verbose_name_plural = "categories"
 
+    
+    def category_full_path(self):
+        """
+        Return full path category.
+        """
+        full_path = [self.title.lower()]
+        parent_name = self.parent
+        while parent_name is not None:
+            full_path.append(parent_name.title.lower())
+            parent_name = parent_name.parent
+        return full_path[::-1]
+    
     def clean(self):
 
-        if self.parent:
-            self.slug = slugify(f"{self.parent} {self.title}")
-        else:
-            self.slug = slugify(self.title)
+        category_path = self.category_full_path()
 
-        if Category.objects.filter(slug=self.slug).exists():
-            raise ValidationError(f'A category with slug "{self.slug}" is already exists.')
+        self.slug = slugify(category_path)
+
+        if Category.objects.filter(slug=self.slug).exclude(id=self.id).exists():
+            raise ValidationError(f'A category with slug "{self.slug}" is already exists.')    
 
         return super().clean()
-        
-    
+
     def __str__(self):
-        if self.parent:
-            return f"{self.parent} > {self.title}"
-        return self.title
-    
+        full_path = self.category_full_path()
+        return ' -> '.join(full_path)
+
+   
 
 class Product(models.Model):
     """
     Model representing a product in the online shop.
     """
-    category = models.ForeignKey(
-                                Category, on_delete=models.CASCADE,
+    category = models.ManyToManyField(
+                                Category,
                                 related_name='products'
                                 )
+    tags = TaggableManager(blank=True)
     name = models.CharField(max_length=250)
+    slug = models.SlugField(unique=True)
     description = models.TextField()
     cover_image = models.ImageField(
                                     upload_to='products_cover_image/',
@@ -99,18 +115,10 @@ class Attribute(models.Model):
     Model representing an attribute that can be associated
     with products, like "Size" or "Material".
     """
-    name = models.CharField(max_length=250)
-    category = models.ForeignKey(
-                                Category,
-                                on_delete=models.CASCADE,
-                                related_name='attributes'
-                                )
-    
-    class Meta:
-        unique_together = ('name', 'category')
+    name = models.CharField(unique=True, max_length=250)
 
     def __str__(self):
-        return f"{self.name} ({self.category})"
+        return self.name
 
 
 class ProductAttributeValue(models.Model):

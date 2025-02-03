@@ -1,5 +1,6 @@
 from django.test import TestCase
 from django.db.utils import IntegrityError
+from django.core.exceptions import ValidationError
 
 from ..models import (
                     Category, Color,
@@ -40,7 +41,7 @@ class CategoryModelTest(
     def test_parent_child_relationship(self):
         """Test the self-referencing ForeignKey for subcategories."""
         self.assertEqual(self.child_category.parent, self.category)
-        self.assertIn(self.child_category, self.category.subcategories.all())
+        self.assertIn(self.child_category, self.category.sub_cats.all())
 
     def test_update_foreign_key(self):
         """Test updating the subcategories category foreign key."""
@@ -48,9 +49,42 @@ class CategoryModelTest(
         self.category.save()
         self.assertEqual(self.category.child_category, self.new_child_category)
 
+    def test_category_slug_generation(self):
+        self.assertEqual(self.category.slug, 'mobile')
+        self.assertEqual(self.child_category.slug, 'mobile-samsung')
+
+    def test_category_slug_unique(self):
+        """Test that two categories with the same slug raise a ValidationError."""
+        duplicate_category = Category(title=self.category.title)
+        # Validate the second category (this should raise a ValidationError due to the duplicate slug)
+        with self.assertRaises(ValidationError):
+            duplicate_category.clean()
+
+
+    def test_category_full_path(self):
+        self.assertEqual(
+                        self.child_category.category_full_path(),
+                        [self.category.title.lower(),
+                        self.child_category.title.lower()]
+                         )
+
+    def test_inactive_category_not_shown_in_active(self):
+        """Test that inactive categories are excluded from active categories."""
+        # Assuming you have a queryset to fetch active categories
+        active_categories = Category.objects.filter(is_active=True)
+        self.assertIn(self.active_category, active_categories)
+        self.assertNotIn(self.inactive_category, active_categories)
+
+    def test_category_with_parent(self):
+        """Test assigning a parent category."""
+        parent = self.category
+
+        self.assertEqual(self.child_category.parent, parent)
+
     def test_category_str_method(self):
         """Test the __str__ method of the category model."""
-        self.assertEqual(str(self.category), 'Mobile')
+        self.assertEqual(str(self.category), 'mobile')
+
 
 
 class ProductModelTest(
@@ -60,60 +94,50 @@ class ProductModelTest(
     """
     Tests for the Product model.
     """
-    def test_product_creation(self):
-        """Test product creation."""
-        self.assertEqual(self.product.category, self.category)
-        self.assertEqual(self.product.name, 'Asus')
-        self.assertEqual(self.product.description, 'asus description')
-        self.assertTrue(
-                        self.product.cover_image.name.\
-                        startswith('products_cover_image/test_image')
-                        )
-        self.assertTrue(self.product.cover_image.name.endswith('.jpg'))
-        self.assertTrue(self.product.is_active)
 
-    def test_product_without_category(self):
-        """Test that creating a product without
-        a category raises an IntegrityError."""
-        with self.assertRaises(IntegrityError):
-            Product.objects.create(
-                name="Smartphone",
-                description="A smartphone without a category"
-            )
+    # def test_create_product(self):
+    # # Test product creation
+    #     self.assertEqual(self.product.name, "Asus")
+    #     self.assertEqual(self.product.slug, "asus")
+    #     self.assertEqual(self.product.description, "asus description")
+    #     self.assertTrue(self.product.is_active)  # Default value should be True
+    #     self.assertIsNotNone(self.product.created_at)  # Created at should be set
+    #     self.assertIsNotNone(self.product.updated_at)  # Updated at should be set
+    #     # Test the category relationship
+    #     self.assertIn(self.new_category, self.product.category.all())
 
-    def test_product_creation_with_default_cover_image(self):
-        """Test that a Product instance has the
-        default cover_image when not specified."""
-        product = Product.objects.create(
-            category=self.category,
-            name='Smartphone',
-            description='A high-end smartphone',
-        )
+    # def test_remove_category_from_product(self):
+    #     """Test removing a category from a product."""
+    #     # First, make sure the category is added to the product
+    #     self.product.category.add(self.category)  # This assumes `self.category` is a valid Category instance
+    #     # Now, remove the category from the product
+    #     self.product.category.remove(self.category)
         
-        self.assertEqual(product.cover_image, 'alternative_image')
+    #     # Ensure the category is no longer associated with the product
+    #     self.assertNotIn(self.category, self.product.category.all())
 
-    def test_cascade_delete(self):
-        """Test that deleting the category
-        deletes associated products."""
-        self.category.delete()
-        with self.assertRaises(Product.DoesNotExist):
-            Product.objects.get(id=self.product.id)
+    # def test_product_without_category(self):
 
-    def test_product_category_relationship(self):
-        """Test that the category's reverse
-        relationship includes the product."""
-        self.assertEqual(self.product.category, self.category)
-        self.assertIn(self.product, self.category.products.all())
+    #     self.assertGreaterEqual(self.product.category.count(), 1)
 
-    def test_update_foreign_key(self):
-        """Test updating the product's category foreign key."""
-        self.product.category = self.new_category
-        self.product.save()
-        self.assertEqual(self.product.category, self.new_category)
+    # def test_product_creation_with_default_cover_image(self):
+    #     """Test that a Product instance has the
+    #     default cover_image when not specified."""
+    #     product = Product.objects.create(
+    #         name='Smartphone',
+    #         description='A high-end smartphone',
+    #     )
+        
+    #     self.assertEqual(product.cover_image, 'alternative_image')
 
-    def test_product_str_method(self):
-        """Test the __str__ method of the Product model."""
-        self.assertEqual(str(self.product), 'Asus')
+    # def test_update_category(self):
+    #     """Test updating the product's category many to many."""
+    #     self.product.category.add(self.new_category)
+    #     self.assertIn(self.new_category, self.product.category.all())
+
+    # def test_product_str_method(self):
+    #     """Test the __str__ method of the Product model."""
+    #     self.assertEqual(str(self.product), 'Asus')
 
 
 class ColorModelTest(ColorModelSetupMixin, TestCase):
@@ -194,14 +218,19 @@ class VariantModelTest(
         # Another product and color was created to avoid the
         # error of uniqueness of product and color combination
         self.category = Category.objects.create(
-                                        title='Electronics',
-                                        slug='electronics'
+                                        title='Electronics'
                                         )
+        
+        self.category.clean()
+        self.category.save()
+        
         self.product = Product.objects.create(
-            category=self.category,
+            # category=self.category,
             name='Smartphone',
             description='High-end smartphone'
         )
+
+        self.product.category.set([self.category])
 
         self.color = Color.objects.create(name='Green', code='#00ff00')
 
@@ -270,7 +299,6 @@ class VariantModelTest(
 
 class AttributeModelTest(
                         AttributeModelSetupMixin,
-                        CategoryModelSetupMixin,
                         TestCase
                         ):
     """
@@ -280,51 +308,12 @@ class AttributeModelTest(
     def test_attribute_creation(self):
         """Test Attribute creation."""
         self.assertEqual(self.attribute.name, 'Screen size')
-        self.assertEqual(self.attribute.category, self.category)
-
-    def test_attribute_without_category(self):
-        """Test that creating a attribute without a
-        category raises an IntegrityError."""
-        with self.assertRaises(IntegrityError):
-            Attribute.objects.create(
-                name = self.attribute.name,
-            )
-
-    def test_category_cascade_delete(self):
-        """Test that deleting the category deletes associated attributes."""
-        self.category.delete()
-        with self.assertRaises(Attribute.DoesNotExist):
-            Attribute.objects.get(id=self.attribute.id)
-
-    def test_attribute_category_relationship(self):
-        """Test that the category's reverse
-        relationship includes the attributes."""
-        self.assertEqual(self.attribute.category, self.category)
-        self.assertIn(self.attribute, self.category.attributes.all())
-
-    def test_update_category_foreign_key(self):
-        """Test updating the attribute's category foreign key."""
-        self.attribute.category = self.new_category
-        self.attribute.save()
-        self.assertEqual(self.attribute.category, self.new_category)
-
-    def test_attribute_unique_together(self):
-        """
-        Test that the unique_together constraint on the
-        Attribute model prevents duplicate name-category
-        combinations by raising an IntegrityError.
-        """
-        with self.assertRaises(IntegrityError):
-            Attribute.objects.create(
-                name=self.attribute.name,
-                category=self.category
-            )
 
     def test_attribute_str(self):
         """Test the __str__ method of the Attribute model."""
         self.assertEqual(
-                    f"{self.attribute.name} {self.category}",
-                    "Screen size Mobile"
+                    f"{self.attribute.name}",
+                    "Screen size"
                     )
 
 

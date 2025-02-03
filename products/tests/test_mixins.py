@@ -11,28 +11,52 @@ class CategoryModelSetupMixin:
 
         self.category = Category.objects.create(
             title = 'Mobile',
-            slug = 'mobile',
             is_active = True
         )
+
+        self.category.clean()
+        self.category.save()
 
         self.new_category = Category.objects.create(
             title="Home Appliances",
-            slug="home-appliances"
             )
+        
+        self.new_category.clean()
+        self.new_category.save()
 
         self.child_category = Category.objects.create(
             title = 'Samsung',
-            slug = 'samsung',
             parent = self.category,
             is_active = True
         )
 
+        self.child_category.clean()
+        self.child_category.save()
+
         self.new_child_category = Category.objects.create(
             title = 'Xiaomi',
-            slug = 'xiaomi',
             parent = self.category,
             is_active = True
         )
+
+        self.new_child_category.clean()
+        self.new_child_category.save()
+
+        self.inactive_category = Category.objects.create(
+            title = 'Inactive Category',
+            is_active = False
+        )
+
+        self.inactive_category.clean()
+        self.inactive_category.save()
+
+        self.active_category = Category.objects.create(
+            title = 'Active Category',
+            is_active = True
+        )
+
+        self.active_category.clean()
+        self.active_category.save()
 
 
 class ColorModelSetupMixin:
@@ -72,23 +96,33 @@ class ProductModelSetupMixin(CategoryModelSetupMixin, MockSetupMixin):
      def setUp(self):
         super().setUp()
         self.product = Product.objects.create(
-                category = self.category,
+                # category = self.category,
                 name = 'Asus',
+                slug = 'asus',
                 description = 'asus description',
                 cover_image = self.mock_image,
                 is_active = True
         )
 
         self.new_product = Product.objects.create(
-                category = self.category,
+                # category = self.category,
                 name = 'Lenovo',
+                slug = 'lenovo',
                 description = 'Lenovo description',
                 cover_image = self.mock_image,
                 is_active = True
         )
+        # self.product.category.add([self.category.id])
+        # self.product.category.set([self.category])
+        self.product.category.set([self.new_category])
+        # print(self.product.category.set([self.child_category]))
+        # print('+++++++++++++++++++++++++++++++')
+        # print(self.child_category.parent)
+        # print(self.category)
+        # print(self.product.category.all())
 
 
-class AttributeModelSetupMixin(CategoryModelSetupMixin):
+class AttributeModelSetupMixin:
     """
     Mixin to set up a Attribute instance for testing.
     """
@@ -97,10 +131,8 @@ class AttributeModelSetupMixin(CategoryModelSetupMixin):
 
         self.attribute = Attribute.objects.create(
             name = 'Screen size',
-            category = self.category
         )
 
         self.new_attribute = Attribute.objects.create(
             name = 'Os type',
-            category = self.category
         )
