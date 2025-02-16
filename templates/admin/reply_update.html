@@ -1,0 +1,14 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+  
+  <h3>Update Reply:</h3>
+
+  <form method="POST">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Update Reply</button>
+  </form>
+
+  <a href="/admin/products/comment/{{ reply.parent.pk }}/show_replies/">Back to comment</a>
+{% endblock %}

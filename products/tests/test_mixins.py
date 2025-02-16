@@ -1,6 +1,9 @@
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.contrib.auth import get_user_model
+from django.test import Client
 
-from ..models import Attribute, Category, Color, Product
+
+from ..models import Attribute, Category, Color, Product, Comment
 
 class CategoryModelSetupMixin:
     """
@@ -135,4 +138,57 @@ class AttributeModelSetupMixin:
 
         self.new_attribute = Attribute.objects.create(
             name = 'Os type',
+        )
+
+
+
+User = get_user_model()
+class UserModelSetupMixin:
+    def setUp(self):
+        super().setUp()
+
+        self.user_1 = User.objects.create_user(
+                                            username='mehdi',
+                                            password='12345'
+                                            )
+        self.user_2 = User.objects.create_user(
+                                            username='negar',
+                                            password='54321'
+                                            )
+        self.user_3 = User.objects.create_user(
+                                            username='ali',
+                                            password='12345'
+                                            )
+
+
+class CommentModelSetupMixin(
+                            ProductModelSetupMixin,
+                            UserModelSetupMixin
+                            ):
+    """
+    Mixin to set up a Comment instance for testing.
+    """
+    def setUp(self):
+        super().setUp()
+
+        self.comment_1 = Comment.objects.create(
+            user = self.user_3,
+            product = self.product,
+            content = 'asus comment 1',
+            status = 'w'
+        )
+
+        self.comment_2 = Comment.objects.create(
+            user = self.user_1,
+            product = self.product,
+            parent = self.comment_1,
+            content = 'comment 1 reply',
+            status = 'p'
+        )
+
+        self.comment_3 = Comment.objects.create(
+            user = self.user_2,
+            product = self.product,
+            content = 'second comment',
+            status = 'c'
         )

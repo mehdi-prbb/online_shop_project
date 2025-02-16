@@ -51,7 +51,7 @@ INSTALLED_APPS = [
 
     # Third party
     'colorfield',
-    'debug_toolbar',
+    # 'debug_toolbar',
     # 'treebeard',
     'mptt',
     'taggit',
@@ -63,15 +63,15 @@ INSTALLED_APPS = [
 
 
 # Django Debug Toolbar
-INTERNAL_IPS = [
-    "127.0.0.1",
-]
+# INTERNAL_IPS = [
+#     "127.0.0.1",
+# ]
 
-DEBUG_TOOLBAR_CONFIG = {
-    'SHOW_TOOLBAR_CALLBACK': lambda _request: DEBUG
-}
+# DEBUG_TOOLBAR_CONFIG = {
+#     'SHOW_TOOLBAR_CALLBACK': lambda _request: DEBUG
+# }
 
-DEBUG_TOOLBAR_CONFIG['IS_RUNNING_TESTS'] = False
+# DEBUG_TOOLBAR_CONFIG['IS_RUNNING_TESTS'] = False
 
 
 MIDDLEWARE = [
@@ -82,7 +82,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'debug_toolbar.middleware.DebugToolbarMiddleware',
+    # 'debug_toolbar.middleware.DebugToolbarMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -98,6 +98,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'products.context_processors.category_context_processor'
             ],
         },
     },

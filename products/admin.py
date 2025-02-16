@@ -1,13 +1,21 @@
 from django import forms
-from django.contrib import admin
+from django.shortcuts import get_object_or_404, redirect, render
+from django.contrib import admin, messages
 from django.db.models import Sum
+from django.utils.html import format_html
+from django.http import HttpResponseRedirect
+from django.urls import path
+from django.template.response import TemplateResponse
 from django.contrib.admin import ModelAdmin, TabularInline
 
 from . models import (
                     Category, Color,
                     Product, Variant,
-                    ProductAttributeValue, Attribute
+                    ProductAttributeValue, Attribute,
+                    Comment
                     )
+
+from .forms import ReplyForm
 
 
 @admin.register(Category)
@@ -128,3 +136,113 @@ class ColorAdmin(ModelAdmin):
     list_display = ['id', 'name', 'code']
     search_fields = ['name']
 
+
+@admin.register(Comment)
+class CommentAdmin(admin.ModelAdmin):
+    list_display = ('user', 'product', 'created_at', 'status', 'reply_button')
+    list_filter = ('status', 'created_at')
+    search_fields = ('user__username', 'product__name', 'content')
+    actions = ['publish_comments', 'cancel_comments']
+    list_editable = ['status']
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.filter(parent__isnull=True).prefetch_related('replies')  # Show all comments, both top-level and replies
+
+    def reply_button(self, obj):
+        # Show "Show Replies" button if the comment has replies
+        if obj.replies.exists():
+            return format_html('<a class="button" href="{}">Show Reply</a>', self.get_reply_url(obj))
+        # Otherwise, show "Reply" button for the comment
+        else:
+            return format_html('<a class="button" href="{}">Reply</a>', self.get_reply_url(obj))
+
+    def get_reply_url(self, obj):
+        # URL to reply or show replies to the comment
+        if obj.replies.exists():
+            return f"/admin/{obj._meta.app_label}/{obj._meta.model_name}/{obj.pk}/show_replies/"
+        return f"/admin/{obj._meta.app_label}/{obj._meta.model_name}/{obj.pk}/reply/"
+
+    def publish_comments(self, request, queryset):
+        update_status = queryset.update(status='p')
+        self.message_user(request, f'{update_status} comment(s) changed to published.', messages.SUCCESS)
+    
+    def cancel_comments(self, request, queryset):
+        update_status = queryset.update(status='c')
+        self.message_user(request, f'{update_status} comment(s) changed to canceled.', messages.SUCCESS)
+
+    def get_urls(self):
+        """
+        Add custom URL patterns for handling show replies and reply actions.
+        """
+        urls = super().get_urls()
+        custom_urls = [
+            path('<int:comment_id>/show_replies/', self.show_replies_view, name='show_replies'),
+            path('<int:comment_id>/reply/', self.reply_view, name='reply'),
+            path('reply/<int:reply_id>/update/', self.update_reply, name='update_reply'),
+            path('reply/<int:reply_id>/delete/', self.delete_reply, name='delete_reply'),
+        ]
+        return custom_urls + urls
+
+    def show_replies_view(self, request, comment_id):
+        comment = Comment.objects.get(pk=comment_id)
+        replies = comment.replies.all()  # Get all replies for the comment
+        
+        context = {
+            'comment': comment,
+            'replies': replies,
+        }
+        return TemplateResponse(request, "admin/show_replies.html", context)
+
+    def reply_view(self, request, comment_id):
+        comment = get_object_or_404(Comment, pk=comment_id)
+        if request.method == "POST":
+            form = ReplyForm(request.POST)
+            if form.is_valid():
+                # Create a new comment as a reply
+                reply = form.save(commit=False)
+                reply.parent = comment
+                reply.user = request.user  # or any admin user
+                reply.product = comment.product  # Set the product to the parent comment's product
+                reply.status = Comment.PUBLISHED  # Set the status to waiting, or another logic
+                reply.save()
+
+                comment.status = Comment.PUBLISHED
+                comment.save()
+                # Redirect to the comment change page after saving the reply
+                self.message_user(request, "Reply successfully added.", messages.SUCCESS)
+                return redirect(f"/admin/products/comment/")
+        else:
+            form = ReplyForm()
+
+        context = {
+            'comment': comment,
+            'form': form,
+        }
+
+        return render(request, "admin/reply_comment.html", context)
+    
+    def update_reply(self, request, reply_id):
+        reply = get_object_or_404(Comment, pk=reply_id)
+        if request.method == "POST":
+            form = ReplyForm(request.POST, instance=reply)
+            if form.is_valid():
+                form.save()
+                self.message_user(request, "Reply updated successfully.", messages.SUCCESS)
+                return redirect(f"/admin/products/comment/")
+        else:
+            form = ReplyForm(instance=reply)
+
+        context = {
+            'reply': reply,
+            'form': form,
+        }
+
+        return render(request, "admin/reply_update.html", context)
+
+    def delete_reply(self, request, reply_id):
+        reply = get_object_or_404(Comment, pk=reply_id)
+        parent_comment = reply.parent
+        reply.delete()
+        self.message_user(request, "Reply deleted successfully.", messages.SUCCESS)
+        return redirect(f"/admin/products/comment/")

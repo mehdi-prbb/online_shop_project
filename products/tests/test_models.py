@@ -1,18 +1,22 @@
 from django.test import TestCase
 from django.db.utils import IntegrityError
 from django.core.exceptions import ValidationError
+from django.urls import reverse
+from django.contrib.auth import get_user_model
 
 from ..models import (
                     Category, Color,
                     Product, ProductAttributeValue,
-                    Variant, Attribute
+                    Variant, Comment
                     )
 from . test_mixins import (
                         AttributeModelSetupMixin,
                         CategoryModelSetupMixin,
                         ColorModelSetupMixin,
                         ProductModelSetupMixin,
-                        MockSetupMixin
+                        MockSetupMixin,
+                        CommentModelSetupMixin,
+                        UserModelSetupMixin
                         )
 
 
@@ -95,49 +99,49 @@ class ProductModelTest(
     Tests for the Product model.
     """
 
-    # def test_create_product(self):
-    # # Test product creation
-    #     self.assertEqual(self.product.name, "Asus")
-    #     self.assertEqual(self.product.slug, "asus")
-    #     self.assertEqual(self.product.description, "asus description")
-    #     self.assertTrue(self.product.is_active)  # Default value should be True
-    #     self.assertIsNotNone(self.product.created_at)  # Created at should be set
-    #     self.assertIsNotNone(self.product.updated_at)  # Updated at should be set
-    #     # Test the category relationship
-    #     self.assertIn(self.new_category, self.product.category.all())
+    def test_create_product(self):
+    # Test product creation
+        self.assertEqual(self.product.name, "Asus")
+        self.assertEqual(self.product.slug, "asus")
+        self.assertEqual(self.product.description, "asus description")
+        self.assertTrue(self.product.is_active)  # Default value should be True
+        self.assertIsNotNone(self.product.created_at)  # Created at should be set
+        self.assertIsNotNone(self.product.updated_at)  # Updated at should be set
+        # Test the category relationship
+        self.assertIn(self.new_category, self.product.category.all())
 
-    # def test_remove_category_from_product(self):
-    #     """Test removing a category from a product."""
-    #     # First, make sure the category is added to the product
-    #     self.product.category.add(self.category)  # This assumes `self.category` is a valid Category instance
-    #     # Now, remove the category from the product
-    #     self.product.category.remove(self.category)
+    def test_remove_category_from_product(self):
+        """Test removing a category from a product."""
+        # First, make sure the category is added to the product
+        self.product.category.add(self.category)  # This assumes `self.category` is a valid Category instance
+        # Now, remove the category from the product
+        self.product.category.remove(self.category)
         
-    #     # Ensure the category is no longer associated with the product
-    #     self.assertNotIn(self.category, self.product.category.all())
+        # Ensure the category is no longer associated with the product
+        self.assertNotIn(self.category, self.product.category.all())
 
-    # def test_product_without_category(self):
+    def test_product_without_category(self):
 
-    #     self.assertGreaterEqual(self.product.category.count(), 1)
+        self.assertGreaterEqual(self.product.category.count(), 1)
 
-    # def test_product_creation_with_default_cover_image(self):
-    #     """Test that a Product instance has the
-    #     default cover_image when not specified."""
-    #     product = Product.objects.create(
-    #         name='Smartphone',
-    #         description='A high-end smartphone',
-    #     )
+    def test_product_creation_with_default_cover_image(self):
+        """Test that a Product instance has the
+        default cover_image when not specified."""
+        product = Product.objects.create(
+            name='Smartphone',
+            description='A high-end smartphone',
+        )
         
-    #     self.assertEqual(product.cover_image, 'alternative_image')
+        self.assertEqual(product.cover_image, 'alternative_image')
 
-    # def test_update_category(self):
-    #     """Test updating the product's category many to many."""
-    #     self.product.category.add(self.new_category)
-    #     self.assertIn(self.new_category, self.product.category.all())
+    def test_update_category(self):
+        """Test updating the product's category many to many."""
+        self.product.category.add(self.new_category)
+        self.assertIn(self.new_category, self.product.category.all())
 
-    # def test_product_str_method(self):
-    #     """Test the __str__ method of the Product model."""
-    #     self.assertEqual(str(self.product), 'Asus')
+    def test_product_str_method(self):
+        """Test the __str__ method of the Product model."""
+        self.assertEqual(str(self.product), 'Asus')
 
 
 class ColorModelTest(ColorModelSetupMixin, TestCase):
@@ -417,3 +421,59 @@ class ProductAttributeValueModelTest(
     def test_attribute_value_str(self):
         """Test the __str__ method of the ProductAttributeValue model."""
         self.assertEqual(str(self.attribute_value), "")
+
+
+class CommentModelTest(
+                    CommentModelSetupMixin,
+                    TestCase
+                    ):
+    def test_create_comment(self):
+        self.assertEqual(self.comment_1.user, self.user_3)
+        self.assertEqual(self.comment_1.product, self.product)
+        self.assertIsNone(self.comment_1.parent)
+        self.assertEqual(self.comment_1.status, 'w')
+        self.assertFalse(self.comment_1.is_reply())
+
+    def test_create_reply_comment(self):
+        self.assertEqual(self.comment_2.user, self.user_1)
+        self.assertEqual(self.comment_2.product, self.product)
+        self.assertEqual(self.comment_2.parent, self.comment_1)
+        self.assertEqual(self.comment_2.status, 'p')
+        self.assertTrue(self.comment_2.is_reply())
+
+    def test_get_absolute_url(self):
+        expected_url = reverse("products:product_details", kwargs={"product_slug": self.product.slug})
+        self.assertEqual(self.comment_1.get_absolute_url(), expected_url)
+
+    def test_user_cascade_delete(self):
+        """Test that deleting the comment author
+        deletes associated comment."""
+        User = get_user_model()
+        self.user_3.delete()
+        with self.assertRaises(Comment.DoesNotExist):
+            Comment.objects.get(id=self.comment_1.id)
+
+    def test_product_cascade_delete(self):
+        """Test that deleting the product
+        deletes associated comment."""
+        self.product.delete()
+        with self.assertRaises(Comment.DoesNotExist):
+            Comment.objects.get(id=self.comment_1.id)
+
+    def test_parent_cascade_delete(self):
+        """Test that deleting the comment
+        deletes associated reply."""
+        self.comment_1.delete()
+        with self.assertRaises(Comment.DoesNotExist):
+            Comment.objects.get(id=self.comment_2.id)
+
+    def test_published_comments_manager(self):
+
+        published_comments = Comment.published_comments_manager.all()
+
+        # comment_1 and comment_3 status are not published.
+        self.assertEqual(published_comments.count(), 1)
+        self.assertEqual(published_comments.first(), self.comment_2)
+        self.assertNotIn(self.comment_1, published_comments)
+        self.assertNotIn(self.comment_3, published_comments)
+

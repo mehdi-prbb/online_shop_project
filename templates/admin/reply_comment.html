@@ -1,0 +1,19 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+  <h1>Reply to Comment by {{ comment.user.username }}</h1>
+  
+  <h3>Comment:</h3>
+  <p><strong>{{ comment.content }}</strong></p>
+  <p><em>Status: {{ comment.get_status_display }}</em></p>
+
+  <h3>Reply Form:</h3>
+  <form method="POST">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Submit Reply</button>
+  </form>
+
+  <a href="/admin/products/comment/">Back to comment</a>
+{% endblock %}
+

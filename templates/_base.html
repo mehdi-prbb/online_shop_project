@@ -56,9 +56,9 @@
                         <div class="mainmenu-nav d-none d-lg-block w-100 pr-3">
                             <ul class="mainmenu d-lg-flex jusity-content-end jusity-content-lg-start pt-4">
                                 <li class="mainmenu__item menu-item-has-children active">
-                                    <a href="#" class="mainmenu__link">
-                                        <span class="mm-text">categories</span>
-                                        {% for category in categories %}
+                                    {% comment %} <span class="mm-text">category</span> {% endcomment %}
+                                    {% for category in categories %}
+                                        <a href="{% url "products:product_list" slug=category.slug %}" class="mainmenu__link">
                                             {{ category.title }}
                                         {% endfor %}
                                     </a>

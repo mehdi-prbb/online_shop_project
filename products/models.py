@@ -1,4 +1,6 @@
 from django.db import models
+from django.conf import settings
+from django.urls import reverse
 from django.utils.text import slugify
 from django.core.exceptions import ValidationError
 
@@ -70,6 +72,10 @@ class Product(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)
+
+    def get_absolute_url(self):
+        return reverse("products:product_details", kwargs={"product_slug": self.slug})
+    
 
     def __str__(self):
         return self.name
@@ -145,5 +151,43 @@ class ProductAttributeValue(models.Model):
         return ""
 
     
+
+class PublishedCommentsManger(models.Manager):
+    def get_queryset(self):
+        return super(PublishedCommentsManger, self).get_queryset().all().filter(status='p')
+
+class Comment(models.Model):
+    PUBLISHED = 'p'
+    WAITING = 'w'
+    CANCELED = 'c'
+
+    PUBLISH_STATUS = [
+        (PUBLISHED, 'published'),
+        (WAITING, 'waiting'),
+        (CANCELED, 'canceled')
+    ]
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='commenters')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='comments')
+    parent = models.ForeignKey("self", on_delete=models.CASCADE, related_name='replies', null=True, blank=True)
+    content = models.TextField()
+    status = models.CharField(max_length=1, choices=PUBLISH_STATUS, default=WAITING)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = models.Manager()
+    published_comments_manager = PublishedCommentsManger()
+
+    class Meta:
+        ordering = ['-created_at']  # Show latest comments first
+
+    def __str__(self):
+        return f"Comment by {self.user.username} on {self.product.name}"
+
+    def is_reply(self):
+        """
+        Check if the comment is a reply to another comment.
+        """
+        return self.parent is not None
     
-    
+    def get_absolute_url(self):
+        return reverse("products:product_details", kwargs={"product_slug": self.product.slug})
