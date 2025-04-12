@@ -1,4 +1,4 @@
-from django.views.generic import ListView, DetailView, CreateView
+from django.views.generic import ListView, DetailView, CreateView, TemplateView
 from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404
 from django.contrib import messages
@@ -6,6 +6,10 @@ from django.contrib import messages
 from .models import Product, Category, Comment
 from .forms import ReplyForm
 
+
+
+class HomeView(TemplateView):
+    template_name = 'products/home.html'
 
 
 class ProductListView(ListView):

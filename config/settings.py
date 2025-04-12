@@ -51,9 +51,7 @@ INSTALLED_APPS = [
 
     # Third party
     'colorfield',
-    # 'debug_toolbar',
-    # 'treebeard',
-    'mptt',
+    'debug_toolbar',
     'taggit',
 
     # My Apps
@@ -63,15 +61,15 @@ INSTALLED_APPS = [
 
 
 # Django Debug Toolbar
-# INTERNAL_IPS = [
-#     "127.0.0.1",
-# ]
+INTERNAL_IPS = [
+    "127.0.0.1",
+]
 
-# DEBUG_TOOLBAR_CONFIG = {
-#     'SHOW_TOOLBAR_CALLBACK': lambda _request: DEBUG
-# }
+DEBUG_TOOLBAR_CONFIG = {
+    'SHOW_TOOLBAR_CALLBACK': lambda _request: DEBUG
+}
 
-# DEBUG_TOOLBAR_CONFIG['IS_RUNNING_TESTS'] = False
+DEBUG_TOOLBAR_CONFIG['IS_RUNNING_TESTS'] = False
 
 
 MIDDLEWARE = [
@@ -82,7 +80,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    # 'debug_toolbar.middleware.DebugToolbarMiddleware',
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -172,9 +170,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Authentication settings
 AUTH_USER_MODEL = 'accounts.CustomUser'
 
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'unique-snowflake',
-    }
-}
+AUTHENTICATION_BACKENDS = [
+    'accounts.authenticate.MobileBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+

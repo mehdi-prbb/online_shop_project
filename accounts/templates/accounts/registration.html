@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registration</title>
+</head>
+<body>
+    
+    {% if user.is_authenticated  %}
+        {% if messages %}
+            {% for message in messages %}
+                {{ message }}
+            {% endfor %}
+        {% endif %}
+    {% else %}
+        <h1>Register Now!</h1>
+
+        <p>Send otp via phone number</p>
+        
+        <form action="" method="post">
+            {% csrf_token %}
+            {{ form }}
+            <br>
+            <input type="submit" value="send">
+        </form>
+    {% endif %}
+</body>
+</html>
