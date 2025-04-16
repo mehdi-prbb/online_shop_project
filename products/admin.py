@@ -76,14 +76,14 @@ class ProductAdmin(ModelAdmin):
     filters, inlines for related models, and custom queryset behavior 
     for optimizing performance.
     """
-    list_display = ['id', 'name', 'product_category',
+    list_display = ['id', 'name', 'category',
                     'total_stock', 'tag_list', 'created_at',
                     'updated_at','is_active']
     list_display_links = ['id', 'name']
     search_fields = ['name', 'description', 'category__slug']
     list_filter = ['name', 'updated_at']
     prepopulated_fields = {'slug': ('name',)}
-    filter_horizontal = ('category',)
+    # filter_horizontal = ('category',)
     autocomplete_fields = ['category']
     inlines = [ProductAttributeValueInline, VariantInline]
 
@@ -105,10 +105,6 @@ class ProductAdmin(ModelAdmin):
         This value is displayed in the admin list view as 'Total Stock'.
         """
         return obj.total_stock
-
-    @admin.display(description='Categories', ordering='category')
-    def product_category(self, obj):
-        return " | ".join([cat.slug for cat in obj.category.all()])
     
     def tag_list(self, obj):
         return u", ".join(o.name for o in obj.tags.all())

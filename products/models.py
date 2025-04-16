@@ -3,6 +3,7 @@ from django.conf import settings
 from django.urls import reverse
 from django.utils.text import slugify
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 
 from colorfield.fields import ColorField
 from taggit.managers import TaggableManager
@@ -50,15 +51,20 @@ class Category(models.Model):
     def __str__(self):
         full_path = self.category_full_path()
         return ' -> '.join(full_path)
-
    
+
+class ActiveCategoryProductManger(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(category__is_active=True).distinct()
+
 
 class Product(models.Model):
     """
     Model representing a product in the online shop.
     """
-    category = models.ManyToManyField(
+    category = models.ForeignKey(
                                 Category,
+                                on_delete=models.CASCADE,
                                 related_name='products'
                                 )
     tags = TaggableManager(blank=True)
@@ -74,8 +80,8 @@ class Product(models.Model):
     is_active = models.BooleanField(default=True)
 
     def get_absolute_url(self):
-        return reverse("products:product_details", kwargs={"product_slug": self.slug})
-    
+        return reverse("products:product_details",
+                       kwargs={"product_slug": self.slug})
 
     def __str__(self):
         return self.name
@@ -107,7 +113,7 @@ class Variant(models.Model):
                             default='alternative_image'
                             )
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    stock = models.IntegerField()
+    stock = models.PositiveIntegerField()
 
     class Meta:
         unique_together = ('color', 'product')

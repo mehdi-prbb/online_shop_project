@@ -1,5 +1,6 @@
 from django import forms
-from .models import Comment
+from django.core.exceptions import ValidationError
+from .models import Comment, Product, Variant
 
 class ReplyForm(forms.ModelForm):
     """

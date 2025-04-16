@@ -21,6 +21,7 @@ class ProductListView(ListView):
         category_slug = self.kwargs.get('slug')
 
         category = get_object_or_404(Category, slug=category_slug, is_active=True)
+        print(category.parent)
 
         queryset = Product.objects.filter(category=category)
 
