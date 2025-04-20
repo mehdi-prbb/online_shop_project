@@ -12,6 +12,31 @@ class HomeView(TemplateView):
     template_name = 'products/home.html'
 
 
+
+# from django.db import connection
+# import logging
+# logger = logging.getLogger(__name__)
+
+# class ProductListView(ListView):
+#     model = Product
+#     template_name = 'products/list.html'
+#     context_object_name = 'products'
+
+#     def get_queryset(self):
+#         category_slug = self.kwargs.get('slug')
+
+#         category = get_object_or_404(Category, slug=category_slug, is_active=True)
+#         descendants_categoris = list(category.get_descendants())
+#         all_categories = [category] + descendants_categoris
+
+#         queryset = Product.objects.filter(category__in=all_categories).select_related('category')
+
+#         for q in connection.queries:
+#             print(q['sql'])
+
+#         return queryset
+    
+
 class ProductListView(ListView):
     model = Product
     template_name = 'products/list.html'
@@ -19,14 +44,13 @@ class ProductListView(ListView):
 
     def get_queryset(self):
         category_slug = self.kwargs.get('slug')
-
         category = get_object_or_404(Category, slug=category_slug, is_active=True)
-        print(category.parent)
 
-        queryset = Product.objects.filter(category=category)
+        all_categories = list(Category.objects.filter(is_active=True).only('id', 'parent_id'))
+        descendant_ids = category.get_descendant_ids(all_categories)
+        category_ids = [category.id] + descendant_ids
 
-        return queryset
-    
+        return Product.objects.filter(category_id__in=category_ids).select_related('category', 'category__parent')
 
 class ProductDetailView(DetailView):
     model = Product

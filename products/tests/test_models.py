@@ -108,27 +108,21 @@ class ProductModelTest(
         self.assertIsNotNone(self.product.created_at)  # Created at should be set
         self.assertIsNotNone(self.product.updated_at)  # Updated at should be set
         # Test the category relationship
-        self.assertIn(self.new_category, self.product.category.all())
-
-    def test_remove_category_from_product(self):
-        """Test removing a category from a product."""
-        # First, make sure the category is added to the product
-        self.product.category.add(self.category)  # This assumes `self.category` is a valid Category instance
-        # Now, remove the category from the product
-        self.product.category.remove(self.category)
-        
-        # Ensure the category is no longer associated with the product
-        self.assertNotIn(self.category, self.product.category.all())
-
-    def test_product_without_category(self):
-
-        self.assertGreaterEqual(self.product.category.count(), 1)
+        self.assertEqual(self.product.category, self.category)
+    
+    def test_cascade_delete(self):
+        """Test that deleting the category
+        deletes associated products."""
+        self.category.delete()
+        with self.assertRaises(Product.DoesNotExist):
+            Product.objects.get(id=self.product.id)
 
     def test_product_creation_with_default_cover_image(self):
         """Test that a Product instance has the
         default cover_image when not specified."""
         product = Product.objects.create(
             name='Smartphone',
+            category=self.category,
             description='A high-end smartphone',
         )
         
@@ -136,8 +130,10 @@ class ProductModelTest(
 
     def test_update_category(self):
         """Test updating the product's category many to many."""
-        self.product.category.add(self.new_category)
-        self.assertIn(self.new_category, self.product.category.all())
+        self.product.category = self.new_category
+        self.product.save()
+        updated_product = Product.objects.get(id=self.product.id)
+        self.assertEqual(updated_product.category, self.new_category)
 
     def test_product_str_method(self):
         """Test the __str__ method of the Product model."""
@@ -221,26 +217,12 @@ class VariantModelTest(
         
         # Another product and color was created to avoid the
         # error of uniqueness of product and color combination
-        self.category = Category.objects.create(
-                                        title='Electronics'
-                                        )
-        
-        self.category.clean()
-        self.category.save()
-        
-        self.product = Product.objects.create(
-            # category=self.category,
-            name='Smartphone',
-            description='High-end smartphone'
-        )
 
-        self.product.category.set([self.category])
-
-        self.color = Color.objects.create(name='Green', code='#00ff00')
+        self.color2 = Color.objects.create(name='Green', code='#00ff00')
 
         variant = Variant.objects.create(
             product=self.product,
-            color=self.color,
+            color=self.color2,
             price=10.00,
             stock=1,
         )

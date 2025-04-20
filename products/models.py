@@ -25,15 +25,38 @@ class Category(models.Model):
     class Meta:
         verbose_name_plural = "categories"
 
+
+    def get_descendant_ids(self, all_categories=None):
+        if all_categories is None:
+            all_categories = Category.objects.filter(is_active=True).only('id', 'parent_id')
+
+        descendants = []
+
+        def recurse(parent):
+            children = [cat for cat in all_categories if cat.parent_id == parent.id]
+            for child in children:
+                descendants.append(child.id)
+                recurse(child)
+
+        recurse(self)
+        return descendants
     
     def category_full_path(self):
         """
         Return full path category.
         """
         full_path = [self.title.lower()]
+        visited_ids = {self.id}
         parent_name = self.parent
         while parent_name is not None:
+            if parent_name.id in visited_ids:
+                raise ValidationError(
+                        f"Cycle detected: \
+                        category '{self.title}' is in a \
+                        circular relationship."
+                            )
             full_path.append(parent_name.title.lower())
+            visited_ids.add(parent_name.id)
             parent_name = parent_name.parent
         return full_path[::-1]
     
@@ -44,7 +67,10 @@ class Category(models.Model):
         self.slug = slugify(category_path)
 
         if Category.objects.filter(slug=self.slug).exclude(id=self.id).exists():
-            raise ValidationError(f'A category with slug "{self.slug}" is already exists.')    
+            raise ValidationError(f'A category with slug "{self.slug}" is already exists.')  
+         
+        if len(category_path) != len(set(category_path)):
+            raise ValidationError(f"Category '{self.title}' can't be its own subcategory due to a conflict with '{self.parent}'.") 
 
         return super().clean()
 

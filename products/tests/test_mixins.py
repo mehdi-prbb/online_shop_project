@@ -9,57 +9,40 @@ class CategoryModelSetupMixin:
     """
     Mixin to set up a primary and nested category instance for testing.
     """
+    def create_valid_category(self, **kwargs):
+        obj = Category(**kwargs)
+        obj.full_clean()
+        obj.save()
+        return obj
+
     def setUp(self):
         super().setUp()
 
-        self.category = Category.objects.create(
+        self.category = self.create_valid_category(
             title = 'Mobile',
             is_active = True
         )
-
-        self.category.clean()
-        self.category.save()
-
-        self.new_category = Category.objects.create(
+        self.new_category = self.create_valid_category(
             title="Home Appliances",
             )
-        
-        self.new_category.clean()
-        self.new_category.save()
-
-        self.child_category = Category.objects.create(
+        self.child_category = self.create_valid_category(
             title = 'Samsung',
             parent = self.category,
             is_active = True
         )
-
-        self.child_category.clean()
-        self.child_category.save()
-
-        self.new_child_category = Category.objects.create(
+        self.new_child_category = self.create_valid_category(
             title = 'Xiaomi',
             parent = self.category,
             is_active = True
         )
-
-        self.new_child_category.clean()
-        self.new_child_category.save()
-
-        self.inactive_category = Category.objects.create(
+        self.inactive_category = self.create_valid_category(
             title = 'Inactive Category',
             is_active = False
         )
-
-        self.inactive_category.clean()
-        self.inactive_category.save()
-
-        self.active_category = Category.objects.create(
+        self.active_category = self.create_valid_category(
             title = 'Active Category',
             is_active = True
         )
-
-        self.active_category.clean()
-        self.active_category.save()
 
 
 class ColorModelSetupMixin:
@@ -99,7 +82,7 @@ class ProductModelSetupMixin(CategoryModelSetupMixin, MockSetupMixin):
      def setUp(self):
         super().setUp()
         self.product = Product.objects.create(
-                # category = self.category,
+                category = self.category,
                 name = 'Asus',
                 slug = 'asus',
                 description = 'asus description',
@@ -108,21 +91,13 @@ class ProductModelSetupMixin(CategoryModelSetupMixin, MockSetupMixin):
         )
 
         self.new_product = Product.objects.create(
-                # category = self.category,
+                category = self.new_category,
                 name = 'Lenovo',
                 slug = 'lenovo',
                 description = 'Lenovo description',
                 cover_image = self.mock_image,
                 is_active = True
         )
-        # self.product.category.add([self.category.id])
-        # self.product.category.set([self.category])
-        self.product.category.set([self.new_category])
-        # print(self.product.category.set([self.child_category]))
-        # print('+++++++++++++++++++++++++++++++')
-        # print(self.child_category.parent)
-        # print(self.category)
-        # print(self.product.category.all())
 
 
 class AttributeModelSetupMixin:
@@ -148,16 +123,16 @@ class UserModelSetupMixin:
         super().setUp()
 
         self.user_1 = User.objects.create_user(
-                                            username='mehdi',
-                                            password='12345'
+                                            phone='09031234567',
+                                            password= None
                                             )
         self.user_2 = User.objects.create_user(
-                                            username='negar',
-                                            password='54321'
+                                            phone='09028990847',
+                                            password= None
                                             )
         self.user_3 = User.objects.create_user(
-                                            username='ali',
-                                            password='12345'
+                                            phone='09019925077',
+                                            password= None
                                             )
 
 
