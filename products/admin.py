@@ -9,14 +9,20 @@ from django.template.response import TemplateResponse
 from django.contrib.admin import ModelAdmin, TabularInline
 
 from . models import (
-                    Category, Color,
+                    Brand, Category, Color,
                     Product, Variant,
                     ProductAttributeValue, Attribute,
-                    Comment
+                    Comment, CategoryType
                     )
 
 from .forms import ReplyForm
 
+
+@admin.register(CategoryType)
+class CategoryTypeAdmin(admin.ModelAdmin):
+    list_display = ('id', 'title', 'slug', 'verbose_name')
+    search_fields = ('title',)
+    prepopulated_fields = {'slug': ('title',)}
 
 @admin.register(Category)
 class CategoryAdmin(ModelAdmin):
@@ -26,10 +32,11 @@ class CategoryAdmin(ModelAdmin):
     Configures which fields are displayed in the list view, enables search, 
     prepopulates the slug field based on the title, and filters by title.
     """
-    list_display = ['id', 'title', 'parent', 'is_active', ]
+    list_display = ['id', 'title', 'parent', 'category_type', 'is_active', ]
     list_display_links = ['id', 'title']
+    list_filter = ('category_type',)
     search_fields = ['title']
-    autocomplete_fields = ['parent']
+    autocomplete_fields = ['parent', 'category_type']
     readonly_fields = ['slug']
     
     @admin.display(description='parent', ordering='category')
@@ -76,15 +83,15 @@ class ProductAdmin(ModelAdmin):
     filters, inlines for related models, and custom queryset behavior 
     for optimizing performance.
     """
-    list_display = ['id', 'name', 'category',
-                    'total_stock', 'tag_list', 'created_at',
+    list_display = ['id', 'name', 'brand',
+                    'categories',
+                    'total_stock', 'created_at',
                     'updated_at','is_active']
     list_display_links = ['id', 'name']
     search_fields = ['name', 'description', 'category__slug']
     list_filter = ['name', 'updated_at']
     prepopulated_fields = {'slug': ('name',)}
-    # filter_horizontal = ('category',)
-    autocomplete_fields = ['category']
+    autocomplete_fields = ['brand', 'category']
     inlines = [ProductAttributeValueInline, VariantInline]
 
     def get_queryset(self, request):
@@ -95,7 +102,7 @@ class ProductAdmin(ModelAdmin):
         the total stock of all variants for each product.
         """
         qs = super().get_queryset(request)
-        return qs.annotate(total_stock=Sum('variants__stock')).prefetch_related('category', 'tags')
+        return qs.annotate(total_stock=Sum('variants__stock')).prefetch_related('category')
     
     @admin.display(description='Total Stock', ordering='total_stock')
     def total_stock(self, obj):
@@ -106,8 +113,8 @@ class ProductAdmin(ModelAdmin):
         """
         return obj.total_stock
     
-    def tag_list(self, obj):
-        return u", ".join(o.name for o in obj.tags.all())
+    def categories(self, obj):
+        return ", ".join([cat.title for cat in obj.category.all()])
     
     
 @admin.register(Attribute)
@@ -242,3 +249,11 @@ class CommentAdmin(admin.ModelAdmin):
         reply.delete()
         self.message_user(request, "Reply deleted successfully.", messages.SUCCESS)
         return redirect(f"/admin/products/comment/")
+    
+@admin.register(Brand)
+class BrandAdmin(admin.ModelAdmin):
+    list_display = ('title', 'slug')
+    prepopulated_fields = {
+        'slug': ('title',)
+    }
+    search_fields = ('title',)

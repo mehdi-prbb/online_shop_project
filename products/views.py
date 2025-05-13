@@ -3,7 +3,7 @@ from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404
 from django.contrib import messages
 
-from .models import Product, Category, Comment
+from .models import Brand, Product, Category, Comment
 from .forms import ReplyForm
 
 
@@ -12,45 +12,24 @@ class HomeView(TemplateView):
     template_name = 'products/home.html'
 
 
-
-# from django.db import connection
-# import logging
-# logger = logging.getLogger(__name__)
-
-# class ProductListView(ListView):
-#     model = Product
-#     template_name = 'products/list.html'
-#     context_object_name = 'products'
-
-#     def get_queryset(self):
-#         category_slug = self.kwargs.get('slug')
-
-#         category = get_object_or_404(Category, slug=category_slug, is_active=True)
-#         descendants_categoris = list(category.get_descendants())
-#         all_categories = [category] + descendants_categoris
-
-#         queryset = Product.objects.filter(category__in=all_categories).select_related('category')
-
-#         for q in connection.queries:
-#             print(q['sql'])
-
-#         return queryset
-    
-
 class ProductListView(ListView):
     model = Product
     template_name = 'products/list.html'
     context_object_name = 'products'
 
     def get_queryset(self):
-        category_slug = self.kwargs.get('slug')
-        category = get_object_or_404(Category, slug=category_slug, is_active=True)
+        category_slug = self.kwargs.get('cat_slug')
+        brand_slug = self.kwargs.get('brand_slug')
+        products = Product.objects.all()
 
-        all_categories = list(Category.objects.filter(is_active=True).only('id', 'parent_id'))
-        descendant_ids = category.get_descendant_ids(all_categories)
-        category_ids = [category.id] + descendant_ids
+        if category_slug:
+            category = get_object_or_404(Category, slug=category_slug)
+            products = products.filter(category=category)
 
-        return Product.objects.filter(category_id__in=category_ids).select_related('category', 'category__parent')
+        if brand_slug :
+            brand = get_object_or_404(Brand, slug=brand_slug)
+            products = products.filter(brand=brand)
+        return products
 
 class ProductDetailView(DetailView):
     model = Product

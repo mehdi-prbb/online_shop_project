@@ -3,9 +3,21 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 
 
-from ..models import Attribute, Category, Color, Product, Comment
+from ..models import Attribute, Brand, Category, Color, Product, Comment, CategoryType
 
-class CategoryModelSetupMixin:
+
+class CtaegoryTypeModelSetupMixin:
+    def setUp(self):
+        super().setUp()
+
+        self.category_type = CategoryType.objects.create(
+            title = 'Main',
+            slug = 'main',
+            verbose_name = 'main category'
+        )
+
+
+class CategoryModelSetupMixin(CtaegoryTypeModelSetupMixin):
     """
     Mixin to set up a primary and nested category instance for testing.
     """
@@ -20,27 +32,40 @@ class CategoryModelSetupMixin:
 
         self.category = self.create_valid_category(
             title = 'Mobile',
+            category_type = self.category_type,
             is_active = True
         )
+
+        self.category_1 = self.create_valid_category(
+            title = 'Best sellers',
+            category_type = self.category_type,
+            is_active = True
+        )
+
         self.new_category = self.create_valid_category(
             title="Home Appliances",
+            category_type = self.category_type,
             )
         self.child_category = self.create_valid_category(
             title = 'Samsung',
+            category_type = self.category_type,
             parent = self.category,
             is_active = True
         )
         self.new_child_category = self.create_valid_category(
             title = 'Xiaomi',
+            category_type = self.category_type,
             parent = self.category,
             is_active = True
         )
         self.inactive_category = self.create_valid_category(
             title = 'Inactive Category',
+            category_type = self.category_type,
             is_active = False
         )
         self.active_category = self.create_valid_category(
             title = 'Active Category',
+            category_type = self.category_type,
             is_active = True
         )
 
@@ -75,29 +100,56 @@ class MockSetupMixin:
         )
 
 
-class ProductModelSetupMixin(CategoryModelSetupMixin, MockSetupMixin):
+class BrandModelSetupMixin(MockSetupMixin):
+    def setUp(self):
+        super().setUp()
+        self.brand = Brand.objects.create(
+            title = 'Samsung',
+            slug = 'samsung',
+            logo = self.mock_image
+        )
+
+        self.brand_2 = Brand.objects.create(
+            title = 'Lenovo',
+            slug = 'lenovo',
+            logo = self.mock_image
+        )
+
+        self.brand_3 = Brand.objects.create(
+            title = 'Asus',
+            slug = 'asus',
+            logo = self.mock_image
+        )
+
+
+class ProductModelSetupMixin(CategoryModelSetupMixin, BrandModelSetupMixin, MockSetupMixin):
      """
      Mixin to set up a Product instance and its dependencies for testing.
      """
      def setUp(self):
         super().setUp()
         self.product = Product.objects.create(
-                category = self.category,
+                # category = self.category,
                 name = 'Asus',
                 slug = 'asus',
+                brand = self.brand_3,
                 description = 'asus description',
                 cover_image = self.mock_image,
                 is_active = True
         )
+        self.product.category.add(self.category, self.category_1)
+        self.categories = self.product.category.all()
 
         self.new_product = Product.objects.create(
-                category = self.new_category,
+                # category = self.new_category,
                 name = 'Lenovo',
                 slug = 'lenovo',
+                brand = self.brand_2,
                 description = 'Lenovo description',
                 cover_image = self.mock_image,
                 is_active = True
         )
+        self.new_product.category.add(self.new_category)
 
 
 class AttributeModelSetupMixin:

@@ -3,11 +3,20 @@ from django.conf import settings
 from django.urls import reverse
 from django.utils.text import slugify
 from django.core.exceptions import ValidationError
-from django.db.models import Q
 
 from colorfield.fields import ColorField
-from taggit.managers import TaggableManager
 
+from .custom_managers import PublishedCommentsManger
+
+
+class CategoryType(models.Model):
+    title = models.CharField(max_length=250)
+    slug = models.SlugField(unique=True, blank=True)
+    verbose_name = models.CharField(max_length=250)
+
+    def __str__(self):
+        return self.title
+    
 
 class Category(models.Model):
     """
@@ -15,6 +24,11 @@ class Category(models.Model):
     """
     title = models.CharField(max_length=250)
     slug = models.SlugField(unique=True, blank=True)
+    category_type = models.ForeignKey(
+                                    CategoryType,
+                                    on_delete=models.SET_NULL,
+                                    null=True, blank=True
+                                    )
     parent = models.ForeignKey(
                                 'self', null=True, blank=True,
                                 related_name='sub_cats',
@@ -24,76 +38,54 @@ class Category(models.Model):
 
     class Meta:
         verbose_name_plural = "categories"
-
-
-    def get_descendant_ids(self, all_categories=None):
-        if all_categories is None:
-            all_categories = Category.objects.filter(is_active=True).only('id', 'parent_id')
-
-        descendants = []
-
-        def recurse(parent):
-            children = [cat for cat in all_categories if cat.parent_id == parent.id]
-            for child in children:
-                descendants.append(child.id)
-                recurse(child)
-
-        recurse(self)
-        return descendants
+        unique_together = ('title', 'category_type', 'parent')
     
     def category_full_path(self):
         """
         Return full path category.
         """
         full_path = [self.title.lower()]
-        visited_ids = {self.id}
         parent_name = self.parent
         while parent_name is not None:
-            if parent_name.id in visited_ids:
-                raise ValidationError(
-                        f"Cycle detected: \
-                        category '{self.title}' is in a \
-                        circular relationship."
-                            )
             full_path.append(parent_name.title.lower())
-            visited_ids.add(parent_name.id)
             parent_name = parent_name.parent
         return full_path[::-1]
     
     def clean(self):
-
         category_path = self.category_full_path()
-
         self.slug = slugify(category_path)
 
         if Category.objects.filter(slug=self.slug).exclude(id=self.id).exists():
             raise ValidationError(f'A category with slug "{self.slug}" is already exists.')  
          
         if len(category_path) != len(set(category_path)):
-            raise ValidationError(f"Category '{self.title}' can't be its own subcategory due to a conflict with '{self.parent}'.") 
+            raise ValidationError(f"Category '{self.title}' can't be its own subcategory due to a conflict with '{self.parent}'.")
+        
+        if len(category_path) > 3:
+            raise ValidationError(f"You can't make category '{self.title}' as 4th subcategory, Use tags to make subcategories.'")
 
         return super().clean()
 
     def __str__(self):
         full_path = self.category_full_path()
         return ' -> '.join(full_path)
-   
 
-class ActiveCategoryProductManger(models.Manager):
-    def get_queryset(self):
-        return super().get_queryset().filter(category__is_active=True).distinct()
 
+class Brand(models.Model):
+    title = models.CharField(max_length=250)
+    slug = models.SlugField(unique=True, blank=True)
+    logo = models.ImageField(upload_to='brands_logo/')
+
+    def __str__(self):
+        return self.title
+    
 
 class Product(models.Model):
     """
     Model representing a product in the online shop.
     """
-    category = models.ForeignKey(
-                                Category,
-                                on_delete=models.CASCADE,
-                                related_name='products'
-                                )
-    tags = TaggableManager(blank=True)
+    category = models.ManyToManyField(Category, related_name='products')
+    brand = models.ForeignKey(Brand, on_delete=models.CASCADE, related_name='products')
     name = models.CharField(max_length=250)
     slug = models.SlugField(unique=True)
     description = models.TextField()
@@ -111,7 +103,7 @@ class Product(models.Model):
 
     def __str__(self):
         return self.name
-
+    
 
 class Color(models.Model):
     """
@@ -182,11 +174,6 @@ class ProductAttributeValue(models.Model):
     def __str__(self):
         return ""
 
-    
-
-class PublishedCommentsManger(models.Manager):
-    def get_queryset(self):
-        return super(PublishedCommentsManger, self).get_queryset().all().filter(status='p')
 
 class Comment(models.Model):
     PUBLISHED = 'p'

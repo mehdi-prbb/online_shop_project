@@ -1,4 +1,5 @@
 {% load static %}
+{% comment %} {% load custom_tags %} {% endcomment %}
 
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <html lang="en">
@@ -58,9 +59,18 @@
                                 <li class="mainmenu__item menu-item-has-children active">
                                     {% comment %} <span class="mm-text">category</span> {% endcomment %}
                                     {% for category in categories %}
-                                        <a href="{% url "products:product_list" slug=category.slug %}" class="mainmenu__link">
+                                        <a href="{% url "products:product_list" cat_slug=category.slug %}" class="mainmenu__link">
                                             {{ category.title }}
-                                        {% endfor %}
+                                            {% comment %} {% with labels=category_labels|get_item:category %} {% endcomment %}
+                                                {% comment %} {% if labels %} {% endcomment %}
+                                                <ul>
+                                                {% comment %} {% for label in labels %} {% endcomment %}
+                                                    {% comment %} <li>{{ label.title }}</li>? {% endcomment %}
+                                                {% comment %} {% endfor %? {% endcomment %}
+                                                </ul>
+                                                {% comment %} {% endif %} {% endcomment %}
+                                            {% comment %} {% endwith %} {% endcomment %}
+                                    {% endfor %}
                                     </a>
                                 </li>
                             </ul>

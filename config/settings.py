@@ -51,8 +51,7 @@ INSTALLED_APPS = [
 
     # Third party
     'colorfield',
-    'debug_toolbar',
-    'taggit',
+    # 'debug_toolbar',
 
     # My Apps
     'accounts.apps.AccountsConfig',
@@ -61,15 +60,15 @@ INSTALLED_APPS = [
 
 
 # Django Debug Toolbar
-INTERNAL_IPS = [
-    "127.0.0.1",
-]
+# INTERNAL_IPS = [
+#     "127.0.0.1",
+# ]
 
-DEBUG_TOOLBAR_CONFIG = {
-    'SHOW_TOOLBAR_CALLBACK': lambda _request: DEBUG
-}
+# DEBUG_TOOLBAR_CONFIG = {
+#     'SHOW_TOOLBAR_CALLBACK': lambda _request: DEBUG
+# }
 
-DEBUG_TOOLBAR_CONFIG['IS_RUNNING_TESTS'] = False
+# DEBUG_TOOLBAR_PATCH_SETTINGS = False
 
 
 MIDDLEWARE = [
@@ -80,8 +79,9 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'debug_toolbar.middleware.DebugToolbarMiddleware',
+    # 'debug_toolbar.middleware.DebugToolbarMiddleware',
 ]
+
 
 ROOT_URLCONF = 'config.urls'
 

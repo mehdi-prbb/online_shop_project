@@ -19,7 +19,8 @@ from . test_mixins import (
                         ColorModelSetupMixin,
                         ProductModelSetupMixin,
                         CommentModelSetupMixin,
-                        MockSetupMixin
+                        MockSetupMixin,
+                        BrandModelSetupMixin
                         )
 
 
@@ -29,24 +30,34 @@ class ProductListViewTest(
                         TestCase
                         ):
     
-    def test_view_returns_correct_products(self):
-        url = reverse('products:product_list', kwargs={'slug': self.new_category.slug})
+    def test_view_returns_correct_products_by_category(self):
+        url = reverse('products:product_list', kwargs={'cat_slug': self.new_category.slug})
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
         self.assertIn('products', response.context)
         products = response.context['products']
         self.assertEqual(products.count(), 1)
-        self.assertIn(self.product, products)
+        self.assertIn(self.new_product, products)
+
+    def test_view_returns_correct_products_by_brand(self):
+        url = reverse('products:product_list_by_brand', kwargs={'cat_slug': self.new_category.slug, 'brand_slug': self.brand_2.slug})
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('products', response.context)
+        products = response.context['products']
+        self.assertEqual(products.count(), 1)
+        self.assertIn(self.new_product, products)
 
     def test_view_uses_correct_template(self):
-        url = reverse('products:product_list', kwargs={'slug': self.new_category.slug})
+        url = reverse('products:product_list_by_brand', kwargs={'cat_slug': self.new_category.slug, 'brand_slug': self.brand_2.slug})
         response = self.client.get(url)
 
         self.assertTemplateUsed(response, 'products/list.html')
 
     def test_view_handles_invalid_category(self):
-        url = reverse('products:product_list', kwargs={'slug': 'invalid-category'})
+        url = reverse('products:product_list', kwargs={'cat_slug': 'invalid-category'})
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 404)
@@ -66,10 +77,7 @@ class ProductDetailViewTest(
         comments = response.context['comments']
         self.assertEqual(comments.count(), 1)
         self.assertIn(self.comment_2, comments)
-
         self.assertIn('comment_form', response.context)
-        # print(response.context['comment_form'])
-        # print(ReplyForm)
         self.assertIsInstance(response.context['comment_form'], ReplyForm)
 
     def test_view_uses_correct_template(self):
@@ -83,11 +91,12 @@ class ProductDetailViewTest(
 
 class CommentCreateViewTest(CommentModelSetupMixin, TestCase):
     def test_comment_creation(self):
-        self.client.login(username='mehdi', password='12345')
+        self.client.login(username='09031234567', password='12345')
         
         # Simulate a POST request
         url = reverse('products:comment_create', kwargs={'product_slug': self.product.slug})
         response = self.client.post(url, data={'content': 'This is a test comment.'})
+
         
         # Check the response and database
         self.assertEqual(response.status_code, 302)

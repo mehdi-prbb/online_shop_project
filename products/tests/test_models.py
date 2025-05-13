@@ -16,7 +16,7 @@ from . test_mixins import (
                         ProductModelSetupMixin,
                         MockSetupMixin,
                         CommentModelSetupMixin,
-                        UserModelSetupMixin
+                        BrandModelSetupMixin
                         )
 
 
@@ -31,6 +31,7 @@ class CategoryModelTest(
         """Test Category model creation."""
         self.assertEqual(self.category.title, 'Mobile')
         self.assertEqual(self.category.slug, 'mobile')
+        self.assertEqual(self.category.category_type.title, 'Main')
         self.assertTrue(self.category.is_active)
         # Check that category has no parent.
         self.assertIsNone(self.category.parent)
@@ -93,6 +94,7 @@ class CategoryModelTest(
 
 class ProductModelTest(
                     ProductModelSetupMixin,
+                    BrandModelSetupMixin,
                     TestCase
                     ):
     """
@@ -100,40 +102,31 @@ class ProductModelTest(
     """
 
     def test_create_product(self):
+        # print(self.product.brand.title)
     # Test product creation
         self.assertEqual(self.product.name, "Asus")
         self.assertEqual(self.product.slug, "asus")
+        self.assertEqual(self.product.brand, self.brand_3)
         self.assertEqual(self.product.description, "asus description")
         self.assertTrue(self.product.is_active)  # Default value should be True
         self.assertIsNotNone(self.product.created_at)  # Created at should be set
         self.assertIsNotNone(self.product.updated_at)  # Updated at should be set
         # Test the category relationship
-        self.assertEqual(self.product.category, self.category)
-    
-    def test_cascade_delete(self):
-        """Test that deleting the category
-        deletes associated products."""
-        self.category.delete()
-        with self.assertRaises(Product.DoesNotExist):
-            Product.objects.get(id=self.product.id)
+        self.assertEqual(self.product.category.count(), 2)
+        self.assertIn(self.category, self.categories)
+        self.assertIn(self.category_1, self.categories)
 
     def test_product_creation_with_default_cover_image(self):
         """Test that a Product instance has the
         default cover_image when not specified."""
         product = Product.objects.create(
             name='Smartphone',
-            category=self.category,
+            brand=self.brand,
             description='A high-end smartphone',
         )
+        product.category.add(self.category)
         
         self.assertEqual(product.cover_image, 'alternative_image')
-
-    def test_update_category(self):
-        """Test updating the product's category many to many."""
-        self.product.category = self.new_category
-        self.product.save()
-        updated_product = Product.objects.get(id=self.product.id)
-        self.assertEqual(updated_product.category, self.new_category)
 
     def test_product_str_method(self):
         """Test the __str__ method of the Product model."""
